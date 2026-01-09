@@ -1,6 +1,7 @@
 # Exclude sensitive configuration
 config.ini
 serviceaccountgoogle.json
+.DS_Store
 # Exclude logs and local data
 __pycache__/
 *.pyc
