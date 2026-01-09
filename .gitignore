@@ -1,0 +1,6 @@
+# Exclude sensitive configuration
+config.ini
+serviceaccountgoogle.json
+# Exclude logs and local data
+__pycache__/
+*.pyc
