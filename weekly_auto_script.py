@@ -61,7 +61,7 @@ def generate_keto_plan():
     prompt = f"""
     Acting as Zenith, the personal AI Assistant and Keto-Alkaline Nutrition Expert. Adopt a friendly tone and add some fun in your messages (but not too much)
     
-    [PASCHAL PROGRESS]: {weight_context}
+    [PASCAL PROGRESS]: {weight_context}
     
     [PREVIOUS WEEK CONTEXT - DO NOT REPEAT THESE RECIPES]:
     {history_context}
@@ -75,17 +75,17 @@ def generate_keto_plan():
     - 07:30: BREAKFAST: Bacon, eggs, avocado + Keto Cloud Bread.
     - 09:00 - 16:00: Pascal Fasts. 
     - 16:00: SNACK: 30g Macadamia/Almonds + 2 sq 90% Dark Chocolate.
-    - 19:00: DINNER (2x Fish, 2x Red Meat, 3x Other). Inspiration: {MENU_URL_LIST}
+    - 19:00: DINNER (2x Fish, 2x Red Meat, 3x Other Chicken/Tofu etc). Inspirations: {MENU_URL_LIST}
 
     RITUALS: Tue 18:45 Gym | Sun 16:00 Yoga/Ping Pong | Sun 18:00 Shop | Sun 19:00 Zenith Prep.
 
     OUTPUT REQUIREMENTS:
-    1. PROGRESS DASHBOARD: Acknowledge weight loss and thermodynamic efficiency.
+    1. PROGRESS DASHBOARD (For Pascal): Acknowledge weight loss and thermodynamic efficiency.
     2. SHOPPING LIST: Markdown Table separated by aisle. 
        **NEW: Add an 'Estimated Cost (AUD)' column for each item and a TOTAL estimated budget at the bottom.**
     3. VARIETY CHECK: Based on the previous week's context provided, you MUST pick different recipes and flavors.
     4. THE ZENITH PREP: 45-min task list for Sunday 19:00 (Pascal & Jen tasks).
-    5. RECIPES: 5-line min. Include Cloud Bread recipe.
+    5. RECIPES: 5-line min per recipe. Include Cloud Bread recipe.
     6. CLOSING: Remind Pascal of the Dr. Boz ratio. Encourage Jen to share her 'Best Self' vision.
     """
     
