@@ -203,7 +203,7 @@ def send_email(content, recipient=None, subject=None):
         msg['To'] = target
         msg['Cc'] = PASCAL_EMAIL
         msg['From'] = f"Australe 🌿 <{AUSTRALE_EMAIL}>"
-        msg['Subject'] = subject or f"🛡️ AUSTRALE: Protocole Hebdomadaire {datetime.date.today().strftime('%d/%m')}"
+        msg['Subject'] = subject or f"🛡️ AUSTRALE: Mon Aide Intelligente Hebdomadaire {datetime.date.today().strftime('%d/%m')}"
         
         # Destinataires SMTP (To + Cc)
         all_tos = list(set([target, PASCAL_EMAIL]))
