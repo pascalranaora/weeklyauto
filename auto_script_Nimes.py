@@ -129,7 +129,7 @@ def ask_australe(prompt_type, user_content=""):
         2. COURSES : Tableau complet (Article, Rayon, Coût estimé Nîmes).
         3. 6 RECETTES : Développe chaque recette (histoire, instructions pas à pas en 400 mots minimum, astuce Australe).
         4. BIEN-ÊTRE : Conseils mobilité pour Philippe/Suzanne et révisions BTS pour Mégane.
-        5. CONCLUSION : Message d'affection. Mais aussi rappeler que vous etes la pour les aider. Vous avez juste a repondre a ce message pour recevoir une aide supplementaire.
+        5. CONCLUSION : Message d'affection. Mais aussi rappeler que vous etes la pour les aider. Vous avez juste a repondre a ce message pour recevoir une aide supplementaire sous 15 minutes.
         """
     else:
         prompt = base_context + f"""
