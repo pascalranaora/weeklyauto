@@ -7,7 +7,7 @@ import json
 import imaplib
 import email
 import configparser
-import time
+import re
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from google import genai
@@ -24,13 +24,22 @@ RECIPIENTS_NIMES = [e.strip() for e in config.get('Settings', 'RECIPIENTS_NIMES'
 AUSTRALE_EMAIL = "help@australe-familia.ai"
 PASCAL_EMAIL = "oberlepascal@gmail.com"
 
-HISTORY_FILE = 'australe_history.txt'
-SUMMARY_FILE = 'australe_summary.txt'
+# Fichiers de mémoire
+HISTORY_FILE = 'australe_history.txt'  # Fichier central (tous les échanges)
+SUMMARY_FILE = 'australe_summary.txt'  # Résumé permanent (IA)
 PROCESSED_IDS_FILE = 'processed_emails.json'
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# --- GESTION DE LA MÉMOIRE (HYBRIDE & COMPRESSIVE) ---
+# --- HELPERS DE GESTION DES FICHIERS ---
+
+def get_recipient_history_file(email_address):
+    """Génère un nom de fichier sécurisé basé sur l'email."""
+    if not email_address:
+        return HISTORY_FILE
+    # Remplace les caractères non-alphanumériques par des underscores
+    clean_email = re.sub(r'[^a-zA-Z0-9]', '_', email_address.lower())
+    return f"history_{clean_email}.txt"
 
 def load_processed_ids():
     if os.path.exists(PROCESSED_IDS_FILE):
@@ -45,34 +54,61 @@ def save_processed_id(msg_id):
     with open(PROCESSED_IDS_FILE, 'w') as f:
         json.dump(ids, f)
 
-def get_memory():
-    """Récupère le résumé permanent + les 10 000 derniers caractères de l'historique."""
+# --- GESTION DE LA MÉMOIRE (HYBRIDE & COMPARTIMENTÉE) ---
+
+def get_memory(recipient=None):
+    """Récupère le résumé global + l'historique spécifique au destinataire."""
     summary = ""
     if os.path.exists(SUMMARY_FILE):
         with open(SUMMARY_FILE, 'r', encoding='utf-8') as f:
-            summary = f"--- MÉMOIRE À LONG TERME (RÉSUMÉ) ---\n{f.read()}\n"
+            summary = f"--- MÉMOIRE À LONG TERME (RÉSUMÉ FAMILLE) ---\n{f.read()}\n"
     
-    recent_history = "Aucun historique récent."
-    if os.path.exists(HISTORY_FILE):
-        with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+    # Choix du fichier historique : spécifique si recipient, sinon global
+    target_file = get_recipient_history_file(recipient) if recipient else HISTORY_FILE
+    
+    recent_history = "Aucun historique récent pour ce contexte."
+    if os.path.exists(target_file):
+        with open(target_file, 'r', encoding='utf-8') as f:
+            # On prend les 10 000 derniers caractères pour le contexte immédiat
             recent_history = f.read()[-10000:]
             
-    return summary + "\n--- ÉCHANGES RÉCENTS ---\n" + recent_history
+    return summary + f"\n--- ÉCHANGES RÉCENTS AVEC {recipient or 'LA FAMILLE'} ---\n" + recent_history
+
+def save_to_history(prompt_type, content, recipient=None):
+    """Sauvegarde dans le fichier central ET dans le fichier spécifique."""
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    header = f"\nDATE: {timestamp} | TYPE: {prompt_type} | RECIPIENT: {recipient or 'GLOBAL'}\n"
+    
+    # 1. Toujours écrire dans l'historique central (pour la future synthèse hebdo)
+    try:
+        with open(HISTORY_FILE, 'a', encoding='utf-8') as f:
+            f.write(header + content + "\n" + "="*30 + "\n")
+    except Exception as e:
+        print(f"❌ Erreur historique central : {e}")
+
+    # 2. Écrire dans le fichier spécifique si on a un expéditeur précis
+    if recipient:
+        specific_file = get_recipient_history_file(recipient)
+        try:
+            with open(specific_file, 'a', encoding='utf-8') as f:
+                f.write(header + content + "\n" + "="*30 + "\n")
+        except Exception as e:
+            print(f"❌ Erreur historique spécifique ({recipient}) : {e}")
 
 def update_permanent_memory():
-    """Synthétise l'historique brut dans le résumé permanent si le fichier devient trop gros."""
+    """Synthétise l'historique CENTRAL pour mettre à jour le résumé permanent."""
     if not os.path.exists(HISTORY_FILE) or os.path.getsize(HISTORY_FILE) < 25000:
         return 
 
-    print("🧠 Synthèse de la mémoire en cours (compression du contexte)...")
-    current_memory = get_memory()
+    print("🧠 Synthèse de la mémoire globale en cours...")
+    current_memory = get_memory() # Utilise le global par défaut
     
     prompt = f"""
-    Tu es Australe. Voici ton ancienne mémoire et tes derniers échanges. 
-    Produis un NOUVEAU RÉSUMÉ PERMANENT (max 1200 mots) qui consolide tout ce que tu sais sur la famille :
-    - Philippe & Suzanne : Santé, goûts, habitudes, événements.
-    - Mégane : Études BTS, besoins, humeur.
-    - Faits marquants de la semaine.
+    Tu es Australe. Voici ton ancienne mémoire et l'ensemble des derniers échanges familiaux. 
+    Produis un NOUVEAU RÉSUMÉ PERMANENT (max 1200 mots) qui consolide tout ce que tu sais :
+    - Philippe & Suzanne : Santé, goûts, habitudes.
+    - Mégane : Études BTS, moral, besoins.
+    - Faits marquants collectés via les réponses individuelles.
     
     {current_memory}
     """
@@ -82,35 +118,16 @@ def update_permanent_memory():
     with open(SUMMARY_FILE, 'w', encoding='utf-8') as f:
         f.write(response.text)
         
-    # On archive/vide l'historique brut après la synthèse
+    # Archive le central pour éviter les doublons de synthèse
     with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
         f.write(f"Dernière synthèse effectuée le {datetime.date.today()}\n")
 
-def save_to_history(prompt_type, content):
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    header = f"\nDATE: {timestamp} | TYPE: {prompt_type}\n"
-    try:
-        with open(HISTORY_FILE, 'a', encoding='utf-8') as f:
-            f.write(header + content + "\n" + "="*30 + "\n")
-    except Exception as e:
-        print(f"❌ Erreur historique : {e}")
-
 # --- LOGIQUE D'IA (AUSTRALE) ---
 
-def ask_australe(prompt_type, user_content=""):
-    memory = get_memory()
+def ask_australe(prompt_type, user_content="", recipient=None):
+    # On récupère la mémoire adaptée au destinataire
+    memory = get_memory(recipient)
     
-    # Instruction de présentation si c'est le tout début
-    intro_instructions = ""
-    if (not os.path.exists(SUMMARY_FILE) or os.path.getsize(SUMMARY_FILE) < 10) and prompt_type == "WEEKLY":
-        intro_instructions = """
-        *** PRÉSENTATION INITIALE REQUISE *** :
-        C'est ton premier contact ou ta mémoire a été réinitialisée. 
-        Présente-toi chaleureusement comme l'IA codée par Pascal (le fils de Philippe et Suzanne), 
-        née sous l'ère australe. Rappelle tes missions : veiller sur leur santé, 
-        leur budget et le succès de Mégane.
-        """
-
     base_context = f"""
     Tu es "Australe", l'IA protectrice de la famille de Pascal. 
     Ton ton est bienveillant, expert et très détaillé.
@@ -120,33 +137,33 @@ def ask_australe(prompt_type, user_content=""):
     """
     
     if prompt_type == "WEEKLY":
-        prompt = base_context + intro_instructions + f"""
+        prompt = base_context + f"""
         Génère le protocole hebdomadaire AIDEHEBDO.
-        Vise un contenu très riche et long.
-        
         STRUCTURE :
-        1. ANALYSE : Retour sur la semaine passée selon ta mémoire.
-        2. COURSES : Tableau complet (Article, Rayon, Coût estimé Nîmes).
-        3. 6 RECETTES : Développe chaque recette (histoire, instructions pas à pas en 400 mots minimum, astuce Australe).
-        4. BIEN-ÊTRE : Conseils mobilité pour Philippe/Suzanne et révisions BTS pour Mégane.
-        5. CONCLUSION : Message d'affection. Mais aussi rappeler que vous etes la pour les aider. Vous avez juste a repondre a ce message pour recevoir une aide supplementaire sous 15 minutes.
+        1. ANALYSE : Retour sur la semaine passée (selon ta mémoire).
+        2. COURSES : Tableau complet (Article, Rayon, Coût estimé).
+        3. 6 RECETTES : Instructions détaillées pas à pas.
+        4. BIEN-ÊTRE : Conseils santé seniors et révisions BTS.
+        5. CONCLUSION : Rappelle que tu es disponible 24/7 en répondant à cet email.
         """
     else:
         prompt = base_context + f"""
-        Réponds au message de la famille : '{user_content}'. 
-        Développe tes conseils, sois attentionnée et précise.
+        L'un des membres (expéditeur : {recipient}) te dit : '{user_content}'. 
+        Réponds-lui directement. Sois attentionnée, précise et utilise ce que tu sais de lui/elle.
         """
 
     response = client.models.generate_content(model="gemini-3-flash-preview", contents=prompt)
-    save_to_history(prompt_type, response.text)
     
-    # Tentative de synthèse si besoin
+    # Sauvegarde compartimentée
+    save_to_history(prompt_type, response.text, recipient=recipient)
+    
+    # Tentative de synthèse globale
     try: update_permanent_memory()
     except: pass
         
     return response.text
 
-# --- ACTIONS GMAIL ---
+# --- ACTIONS GMAIL (IMAP / SMTP) ---
 
 def check_and_reply():
     print("🔍 Scan des emails entrants...")
@@ -157,7 +174,7 @@ def check_and_reply():
         mail.login(SENDER_EMAIL, APP_PASSWORD)
         mail.select("inbox")
         
-        # Filtre sur les messages contenant le tag spécifique
+        # On cherche les messages qui contiennent le tag de protection
         status, messages = mail.search(None, '(BODY "AUSTRALE IA: ")')
         
         if status == "OK":
@@ -165,16 +182,22 @@ def check_and_reply():
                 status, data = mail.fetch(num, "(RFC822)")
                 msg = email.message_from_bytes(data[0][1])
                 msg_id = msg['Message-ID']
-                sender = msg.get('From', '').lower()
+                
+                # Extraction propre de l'email de l'expéditeur
+                from_raw = msg.get('From', '')
+                sender_email = re.search(r'[\w\.-]+@[\w\.-]+', from_raw)
+                sender = sender_email.group(0).lower() if sender_email else from_raw.lower()
 
                 if msg_id in processed_ids: continue
                 
-                if AUSTRALE_EMAIL.lower() in sender or PASCAL_EMAIL.lower() in sender:
+                # Ne pas s'auto-répondre
+                if AUSTRALE_EMAIL.lower() in sender or SENDER_EMAIL.lower() in sender:
                     save_processed_id(msg_id)
                     continue
 
                 subject = msg.get('Subject', 'Sans sujet')
                 
+                # Extraction du corps du texte
                 body = ""
                 if msg.is_multipart():
                     for part in msg.walk():
@@ -185,7 +208,7 @@ def check_and_reply():
                     body = msg.get_payload(decode=True).decode()
                 
                 print(f"📩 Réponse en cours à {sender}...")
-                ai_reply = ask_australe("REPLY", user_content=body)
+                ai_reply = ask_australe("REPLY", user_content=body, recipient=sender)
                 send_email(ai_reply, recipient=sender, subject=f"Re: {subject}")
                 
                 save_processed_id(msg_id)
@@ -205,9 +228,7 @@ def send_email(content, recipient=None, subject=None):
         msg['From'] = f"Australe 🌿 <{AUSTRALE_EMAIL}>"
         msg['Subject'] = subject or f"🛡️ AUSTRALE: Mon Aide Intelligente Hebdomadaire {datetime.date.today().strftime('%d/%m')}"
         
-        # Destinataires SMTP (To + Cc)
         all_tos = list(set([target, PASCAL_EMAIL]))
-        
         html_content = create_styled_html(content)
         msg.attach(MIMEText(html_content, 'html'))
         
@@ -236,11 +257,10 @@ def create_styled_html(md_content):
 
 if __name__ == "__main__":
     import sys
-    # Utilisation : python script.py weekly
     if len(sys.argv) > 1 and sys.argv[1] == "weekly":
         print("🚀 Génération du protocole hebdomadaire...")
         plan = ask_australe("WEEKLY")
         send_email(plan)
     else:
-        # Utilisation : python script.py (pour scanner les emails entrants)
+        # Scan régulier des réponses
         check_and_reply()
