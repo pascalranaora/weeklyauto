@@ -225,7 +225,7 @@ def send_email(content, recipient=None, subject=None):
         msg = MIMEMultipart()
         msg['To'] = target
         msg['Cc'] = PASCAL_EMAIL
-        msg['From'] = f"Australe 🌿 <{AUSTRALE_EMAIL}>"
+        msg['From'] = f"Australe 🌿"
         msg['Subject'] = subject or f"🛡️ AUSTRALE: Mon Aide Intelligente Hebdomadaire {datetime.date.today().strftime('%d/%m')}"
         
         all_tos = list(set([target, PASCAL_EMAIL]))
