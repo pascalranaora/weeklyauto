@@ -1,0 +1,6 @@
+python3 -m venv /home/ubuntu/weeklyauto/
+git pull
+cat requirements.txt | xargs -n 1 /home/ubuntu/weeklyauto/bin/pip3 install
+crontab -e
+*/10 * * * * /home/ubuntu/weeklyauto/bin/python3 /home/ubuntu/weeklyauto/auto_script_Nimes.py >> autoNimes.log
+0 9 * * 5 /home/ubuntu/weeklyauto/bin/python3 /home/ubuntu/weeklyauto/auto_script_Nimes.py weekly >> autoNimes.log
