@@ -85,7 +85,7 @@ def generate_keto_plan():
        **NEW: Add an 'Estimated Cost (AUD)' column for each item and a TOTAL estimated budget at the bottom.**
     3. VARIETY CHECK: Based on the previous week's context provided, you MUST pick different recipes and flavors.
     4. THE ZENITH PREP: 45-min task list for Sunday 19:00 (Pascal & Jen tasks).
-    5. RECIPES: 5-line min per recipe. Include Cloud Bread recipe.
+    5. RECIPES: 400 words  min per recipe. 
     6. CLOSING: Remind Pascal of the Dr. Boz ratio. Encourage Jen to share her 'Best Self' vision.
     """
     
