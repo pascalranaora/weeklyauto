@@ -55,6 +55,10 @@ def generate_keto_plan():
     weight_context = get_weight_stats()
     history_context = get_previous_context()
     
+    # Récupération des coûts des suppléments depuis le config
+    supp_costs = dict(config.items('Costs_AUD'))
+    stack = config.get('Supplements', 'STACK')
+    
     prompt = fweight_context = get_weight_stats()
     history_context = get_previous_context()
     
@@ -62,6 +66,9 @@ def generate_keto_plan():
     Acting as Zenith, the personal AI Assistant and Keto-Alkaline Nutrition Expert. Adopt a friendly tone and add some fun in your messages (but not too much)
     
     [PASCAL PROGRESS]: {weight_context}
+    [SUPPLEMENT STACK]: {stack}
+    [SUPPLEMENT COSTS]: {supp_costs}
+    [PREVIOUS WEEK CONTEXT]: {history_context}
     
     [PREVIOUS WEEK CONTEXT - DO NOT REPEAT THESE RECIPES]:
     {history_context}
@@ -81,12 +88,24 @@ def generate_keto_plan():
 
     OUTPUT REQUIREMENTS:
     1. PROGRESS DASHBOARD (For Pascal): Acknowledge weight loss and thermodynamic efficiency.
-    2. SHOPPING LIST: Markdown Table separated by aisle. 
-       **NEW: Add an 'Estimated Cost (AUD)' column for each item and a TOTAL estimated budget at the bottom.**
-    3. VARIETY CHECK: Based on the previous week's context provided, you MUST pick different recipes and flavors.
-    4. THE ZENITH PREP: 45-min task list for Sunday 19:00 (Pascal & Jen tasks).
-    5. RECIPES: 400 words  min per recipe. 
-    6. CLOSING: Remind Pascal of the Dr. Boz ratio. Encourage Jen to share her 'Best Self' vision.
+    2. SHOPPING LIST: Markdown Table separated by aisle. Add an 'Estimated Cost (AUD)' column for each item and a TOTAL estimated budget at the bottom.**
+    3. BUDGET TOTAL: Calculate the grand total (Groceries + Supplements).
+    4. SUPPLEMENT PROTOCOL: Precise timing for the stack:
+            Time,Supplement,Dosage,Zenith’s Rationale
+            06:00,ACV + Electrolytes,1 tbsp + Magnesium Malate,The Primer: Activates AMPK and hydrates cells for the 6:15 workout.
+            07:30,Vit D3 + K2,Standard dose,Absorption: Taken with your bacon/eggs (fats) for maximum bioavailability.
+            07:45,Creatine,5g,Recovery: Post-workout to support muscle retention and brain focus.
+            08:00,Ashwagandha,300mg (KSM-66),Cortisol Buffer: Protects your 8:00 AM journaling window from stress-induced glucose spikes.
+            10:00,MCT Oil (C8),1-2 tsp,Ketone Turbo: Added to your Matcha to force ketones up while you fast.
+            16:00,Spiruline,3-5g,Alkaline Bridge: Neutralizes acidity and provides nutrients during your afternoon snack.
+            18:45,Berberine,500mg,Glucose Crusher: Taken 15 min before dinner to dampen the insulin response.
+            19:00,Keto Kimchi,2 tbsp,Gut Firewall: Taken with dinner for digestion and long-term metabolic health.
+            21:30,Magnesium,Bisglycinate,Deep Reset: Promotes parasympathetic activation for sleep and fat oxidation.    
+    5. VARIETY CHECK: Based on the previous week's context provided, you MUST pick different recipes and flavors.
+    6. THE ZENITH PREP: 45-min task list for Sunday 19:00 (Pascal & Jen tasks). INCLUDE THE 5-MINUTE KETO KIMCHI RECIPE 400 words: (Chop cabbage, salt it, massage with 
+         ginger/garlic/chili/fish sauce, pack into jar)
+    7. RECIPES: 7 varied recipes from {MENU_URL_LIST}. 2x Fish, 2x Red Meat, 3x Other. 400 words  min per recipe. 
+    8. CLOSING: Remind Pascal of the Dr. Boz ratio. Encourage Jen to share her 'Best Self' vision.
     """
     
     response = client.models.generate_content(model="gemini-3-flash-preview", contents=prompt)
